@@ -66,7 +66,7 @@ class DataPager
 	##
 	public function DataPager
 	(
-		$data
+		&$data
 		, $len = 50
 		, $cur = 0
 		, $rng = 3
@@ -75,7 +75,7 @@ class DataPager
 	{
 		if (is_array($data))
 		{
-			$this->data = $data;
+			$this->data = &$data;
 			$this->dataTtl = count($this->data);
 		}
 		else
@@ -193,7 +193,7 @@ class DataPager
 	##
 	public function setBaseURL($url = null)
 	{
-		$this->lnkBase = is_string($url) ? $url : $_SERVER['PHP_SELF'];
+		$this->lnkBase = is_string($url) ? $url : $_SERVER['REQUEST_URI'];
 
 		$strUrl = $this->lnkBase . '?';
 
