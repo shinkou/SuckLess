@@ -1,0 +1,9 @@
+SuckLess is a collection of PHP classes and helper functions with a sole
+purpose of making web development in PHP suck less, hopefully.
+
+Developers are encouraged to extract whatever they find useful in this
+collection and deploy in their projects.  So feel free to dig around.
+
+All codes in this collection are primarily written for PHP 5.3.0 and beyond.
+Unless stated otherwise, support for versions prior to PHP 5.3.0 is not
+guaranteed.
