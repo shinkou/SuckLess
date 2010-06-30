@@ -1,6 +1,13 @@
-<?php
+<?php # vim: ts=4 sw=4 noet
 if (realpath($_SERVER['SCRIPT_FILENAME']) == realpath(__FILE__))
 	die('Access forbidden.');
+
+#
+# SuckLess (http://github.com/shinkou/SuckLess)
+# Copyright (c) 2010 Chun-Kwong Wong
+#
+# This file is released under the MIT license.  For more info, read LICENSE.
+#
 
 #
 # This is a class dedicated to HTML form input validations.
@@ -82,13 +89,13 @@ class HtmlFormValidator
 	# check if the required input presents
 	#
 	# @param $lbl label of the input
-	# @param $v actual value of the input
+	# @param $val actual value of the input
 	#
 	# @return null if succeeded or error message if failed
 	##
-	private function chkRequired($lbl, $v)
+	private function chkRequired($lbl, $val)
 	{
-		if ((is_null($v) || '' == $v))
+		if ((is_null($val) || '' == $val))
 			return '"' . $lbl . '" is required.';
 
 		return null;
@@ -99,14 +106,14 @@ class HtmlFormValidator
 	# allowed length
 	#
 	# @param $lbl label of the input
-	# @param $v actual value of the input
+	# @param $val actual value of the input
 	# @param $max maximum allowed length
 	#
 	# @return null if succeeded or error message if failed
 	##
-	private function chkMaxLen($lbl, $v, $max)
+	private function chkMaxLen($lbl, $val, $max)
 	{
-		if (! is_null($v) && $max < mb_strlen($v))
+		if (! is_null($val) && $max < mb_strlen($val))
 			return '"' . $lbl . '" is longer than the maximum length of '
 				. $max . '.';
 
@@ -118,14 +125,14 @@ class HtmlFormValidator
 	# allowed length
 	#
 	# @param $lbl label of the input
-	# @param $v actual value of the input
+	# @param $val actual value of the input
 	# @param $min minimum allowed length
 	#
 	# @return null if succeeded or error message if failed
 	##
-	private function chkMinLen($lbl, $v, $min)
+	private function chkMinLen($lbl, $val, $min)
 	{
-		if (! is_null($v) && $min > mb_strlen($v))
+		if (! is_null($val) && $min > mb_strlen($val))
 			return '"' . $lbl . '" is shorter than the minimum length of '
 				. $min . '.';
 
@@ -136,13 +143,13 @@ class HtmlFormValidator
 	# check if the input is in digits only
 	#
 	# @param $lbl label of the input
-	# @param $v actual value of the input
+	# @param $val actual value of the input
 	#
 	# @return null if succeeded or error message if failed
 	##
-	private function chkDigit($lbl, $v)
+	private function chkDigit($lbl, $val)
 	{
-		if (! is_null($v) && 1 > preg_match('/^\\d*$/', $v))
+		if (! is_null($val) && 1 > preg_match('/^\\d*$/', $val))
 			return '"' . $lbl . '" has to be digit(s).';
 
 		return null;
@@ -152,13 +159,13 @@ class HtmlFormValidator
 	# check if the input is in alphabets only
 	#
 	# @param $lbl label of the input
-	# @param $v actual value of the input
+	# @param $val actual value of the input
 	#
 	# @return null if succeeded or error message if failed
 	##
-	private function chkAlpha($lbl, $v)
+	private function chkAlpha($lbl, $val)
 	{
-		if (! is_null($v) && 1 > preg_match('/^[[:alpha:]]*$/', $v))
+		if (! is_null($val) && 1 > preg_match('/^[[:alpha:]]*$/', $val))
 			return '"' . $lbl . '" has to be alphabet(s).';
 
 		return null;
@@ -168,13 +175,13 @@ class HtmlFormValidator
 	# check if the input is in alphabets and/or digits only
 	#
 	# @param $lbl label of the input
-	# @param $v actual value of the input
+	# @param $val actual value of the input
 	#
 	# @return null if succeeded or error message if failed
 	##
-	private function chkAlphaDigit($lbl, $v)
+	private function chkAlphaDigit($lbl, $val)
 	{
-		if (! is_null($v) && 1 > preg_match('/^[0-9A-Za-z]*$/', $v))
+		if (! is_null($val) && 1 > preg_match('/^[0-9A-Za-z]*$/', $val))
 			return '"' . $lbl . '" has to be alphabet(s) or digit(s).';
 
 		return null;
@@ -184,19 +191,19 @@ class HtmlFormValidator
 	# check if the input is numeric
 	#
 	# @param $lbl label of the input
-	# @param $v actual value of the input
+	# @param $val actual value of the input
 	#
 	# @return null if succeeded or error message if failed
 	##
-	private function chkNumeric($lbl, $v)
+	private function chkNumeric($lbl, $val)
 	{
 		if
 		(
-			! is_null($v)
+			! is_null($val)
 			&& 1 > preg_match
 			(
 				'/^((?:\+|\-)?(0|[1-9][0-9]*)(\\.\\d*)?)?$/'
-				, $v
+				, $val
 			)
 		)
 			return '"' . $lbl . '" has to be numeric.';
@@ -208,13 +215,13 @@ class HtmlFormValidator
 	# check if the input is smaller than or equal to the maximum allowed
 	#
 	# @param $lbl label of the input
-	# @param $v actual value of the input
+	# @param $val actual value of the input
 	# @param $max maximum allowed
 	#
 	# @return null if succeeded or error message if failed
-	private function chkMax($lbl, $v, $max)
+	private function chkMax($lbl, $val, $max)
 	{
-		if (! is_null($v) && $max < $v * 1)
+		if (! is_null($val) && $max < $val * 1)
 		{
 			return '"' . $lbl . '" is larger than the maximum allowed ('
 				. $max . ').';
@@ -227,13 +234,13 @@ class HtmlFormValidator
 	# check if the input is larger than or equal to the minimum allowed
 	#
 	# @param $lbl label of the input
-	# @param $v actual value of the input
+	# @param $val actual value of the input
 	# @param $min minimum allowed
 	#
 	# @return null if succeeded or error message if failed
-	private function chkMin($lbl, $v, $min)
+	private function chkMin($lbl, $val, $min)
 	{
-		if (! is_null($v) && $min > $v * 1)
+		if (! is_null($val) && $min > $val * 1)
 		{
 			return '"' . $lbl . '" is smaller than the minimum allowed ('
 				. $min . ').';
@@ -247,15 +254,15 @@ class HtmlFormValidator
 	# "up" inclusively
 	#
 	# @param $lbl label of the input
-	# @param $v actual value of the input
+	# @param $val actual value of the input
 	# @param $lo lower boundary of the range
 	# @param $up upper boundary of the range
 	#
 	# @return null if succeeded or error message if failed
 	##
-	private function chkRange($lbl, $v, $lo, $up)
+	private function chkRange($lbl, $val, $lo, $up)
 	{
-		if (! is_null($v) && ($lo > $v * 1 || $up < $v * 1))
+		if (! is_null($val) && ($lo > $val * 1 || $up < $val * 1))
 		{
 			return '"' . $lbl . '" is out of range from ' . $lo . ' to '
 				. $up . '.';
@@ -268,14 +275,14 @@ class HtmlFormValidator
 	# check if the input matches the given pattern
 	#
 	# @param $lbl label of the input
-	# @param $v actual value of the input
+	# @param $val actual value of the input
 	# @param $re pattern to match against
 	#
 	# @return null if succeeded or error message if failed
 	##
-	private function chkMatch($lbl, $v, $re)
+	private function chkMatch($lbl, $val, $re)
 	{
-		if (! is_null($v) && 1 > preg_match($re, $v))
+		if (! is_null($val) && 1 > preg_match($re, $val))
 		{
 			return '"' . $lbl . '" does not match to the pattern "' . $re
 				. '".';
@@ -287,24 +294,24 @@ class HtmlFormValidator
 	###
 	# check input value's validity against defined rules
 	#
-	# @param $k input control name
-	# @param $v actual input value
+	# @param $key input control name
+	# @param $val actual input value
 	##
-	private function chk($k, $v)
+	private function chk($key, $val)
 	{
-		$arr =& $this->rules[$k];
+		$arr =& $this->rules[$key];
 
-		foreach($arr['chks'] as $f => $ps)
+		foreach($arr['chks'] as $func => $prms)
 		{
-			$o = call_user_func_array
+			$strTmp = call_user_func_array
 			(
-				array($this, 'chk' . $f)
-				, array_merge(array($arr['lbl'], $v), $ps)
+				array($this, 'chk' . $func)
+				, array_merge(array($arr['lbl'], $val), $prms)
 			);
 
-			if (is_string($o) && 0 < strlen($o))
+			if (is_string($strTmp) && 0 < strlen($strTmp))
 			{
-				$this->errors[$k] = $o;
+				$this->errors[$key] = $strTmp;
 				$this->isValid = false;
 				break;
 			}
@@ -316,12 +323,12 @@ class HtmlFormValidator
 	###
 	# constructor
 	#
-	# @param $r defined rules in the form of an array
+	# @param $rules defined rules in the form of an array
 	##
-	public function HtmlFormValidator($r = array())
+	public function HtmlFormValidator($rules = array())
 	{
 		$this->isValid = null;
-		$this->rules = $r;
+		$this->rules = $rules;
 		$this->ruleKeys = array_keys($this->rules);
 		$this->errors = array();
 	}
@@ -348,14 +355,14 @@ class HtmlFormValidator
 	# !!! INTERNAL USE ONLY, DO NOT MODIFY !!!
 	# parse and save a single check directive
 	##
-	private static function parseCheck(&$save, $s)
+	private static function parseCheck(&$save, $strIn)
 	{
 		$call = null;
 
 		preg_match
 		(
 			'/^(\\w+)(?:\(([^\(\)]*)\))?$/'
-			, trim($s)
+			, trim($strIn)
 			, $call
 		);
 
@@ -384,43 +391,50 @@ class HtmlFormValidator
 	###
 	# parse string into a rule array which is suitable for validation use
 	#
-	# @param $s string to be parsed
+	# @param $strIn string to be parsed
 	#
 	# @return rule array
 	##
-	public static function parseRules($s)
+	public static function parseRules($strIn)
 	{
-		$o = array();
+		$out = array();
 
-		$a1 = preg_split('/(\\n|\\r\\n?)/', $s, null, PREG_SPLIT_NO_EMPTY);
+		$rules = preg_split
+		(
+			'/(\\n|\\r\\n?)/'
+			, $strIn
+			, null
+			, PREG_SPLIT_NO_EMPTY
+		);
 
-		foreach($a1 as $s)
+		foreach($rules as $rule)
 		{
-			$a2 = explode('|', $s, 3);
-			for($i = 0; 3 > $i; $i ++) $a1[$i] = trim($a2[$i]);
+			$parts = explode('|', $rule, 3);
+			for($i = 0; 3 > $i; $i ++) $parts[$i] = trim($parts[$i]);
 
-			if (0 < strlen($a2[0]))
+			if (0 < strlen($parts[0]))
 			{
-				$o[$a2[0]] = array();
+				$out[$parts[0]] = array();
 
-				if (0 < strlen($a2[1])) $o[$a2[0]]['lbl'] = $a2[1];
+				if (0 < strlen($parts[1]))
+					$out[$parts[0]]['lbl'] = $parts[1];
 
-				if (0 < strlen($a2[2]))
+				if (0 < strlen($parts[2]))
 				{
-					$chks = explode(';', $a2[2]);
+					$chks = explode(';', $parts[2]);
 
 					if (0 < count($chks))
 					{
-						$o[$a2[0]]['chks'] = array();
+						$out[$parts[0]]['chks'] = array();
 
 						foreach($chks as $k => $chk)
-							self::parseCheck($o[$a2[0]]['chks'], $chk);
+							self::parseCheck($out[$parts[0]]['chks'], $chk);
 					}
 				}
 			}
 		}
 
-		return $o;
+		return $out;
 	}
 }
 ?>
