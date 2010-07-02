@@ -34,10 +34,10 @@ class HttpSession
 	private $name;
 	private $comment;
 	private $domain;
-	private $maxage;
+	private $maxage;	# lifetime of the cookie in seconds
 	private $path;
 	private $secure;
-	private $expires;
+	private $expires;	# time before expire in minutes
 
 	# "Cache-control" header field attribute
 	private $cachectrl;
@@ -47,8 +47,112 @@ class HttpSession
 	private $filename;
 	private $headerSent;
 
-	# actual data we want to keep
+	# this is where the actual data kept
 	public $data;
+
+	###
+	# generate ID, internal buffer, and data file name for a new session
+	##
+	private function mkNew()
+	{
+		do
+		{
+			$this->id = md5
+			(
+				uniqid(microtime()) . $_SERVER['REMOTE_ADDR']
+					. $_SERVER['HTTP_USER_AGENT']
+			);
+
+			$this->filename = ini_get('session.save_path')
+				. '/SuckLess_' . $this->name . '.' . $this->id;
+		}
+		while(file_exists($this->filename));
+
+		$this->data = array();
+	}
+
+	###
+	# read previously saved session
+	##
+	private function read()
+	{
+		$fp = @fopen($this->filename, 'r');
+		if ($fp === false) return false;
+		$stats = fstat($fp);
+		fclose($fp);
+
+		$buf = file_get_contents($this->filename);
+		$obj = unserialize($buf);
+
+		if (time() - $stats['atime'] > $obj->expires * 60)
+		{
+			# delete the session data file
+			unlink($this->filename);
+
+			$this->mkNew();
+
+			return false;
+		}
+		else
+		{
+			# old "expires" value SHOULD NOT be used
+			$this->id			= $obj->id;
+			$this->name			= $obj->name;
+			$this->comment		= $obj->comment;
+			$this->domain		= $obj->domain;
+			$this->maxage		= $obj->maxage;
+			$this->path			= $obj->path;
+			$this->secure		= $obj->secure;
+
+			$this->cachectrl	= $obj->cachectrl;
+
+			$this->autosave		= $obj->autosave;
+			$this->filename		= $obj->filename;
+			$this->headerSent	= $obj->headerSent;
+
+			$this->data = $obj->data;
+
+			return true;
+		}
+	}
+
+	###
+	# set ID and data file name of an existing session, or generate if
+	# session does not exist
+	#
+	# @param $id session ID to be set
+	##
+	private function settleId($id)
+	{
+		if (is_string($id) && 0 < strlen($id))
+		{
+			$this->id = $id;
+
+			$this->filename = ini_get('session.save_path') . '/SuckLess_'
+				. $this->name . '.' . $this->id;
+
+			if (file_exists($this->filename))
+				$this->read();
+			else
+				$this->mkNew();
+		}
+		elseif (isset($_COOKIE[$this->name]))
+		{
+			$this->id = $_COOKIE[$this->name];
+
+			$this->filename = ini_get('session.save_path') . '/SuckLess_'
+				. $this->name . '.' . $this->id;
+
+			if (file_exists($this->filename))
+				$this->read();
+			else
+				$this->mkNew();
+		}
+		else
+		{
+			$this->mkNew();
+		}
+	}
 
 	###
 	# constructor
@@ -65,7 +169,6 @@ class HttpSession
 		, $secure = false
 		, $cachectrl = self::CACHECTRL_NONE
 		, $autosave = false
-		, $autoload = false
 	)
 	{
 		if (! is_null($expires))
@@ -78,22 +181,7 @@ class HttpSession
 		else
 			$this->name = 'HttpSessionID';
 
-		if (is_string($id) && 0 < strlen($id))
-		{
-			$this->id = $id;
-		}
-		elseif (isset($_COOKIE[$this->name]))
-		{
-			$this->id = $_COOKIE[$this->name];
-		}
-		else
-		{
-			$this->id = md5
-			(
-				uniqid(microtime()) . $_SERVER['REMOTE_ADDR']
-					. $_SERVER['HTTP_USER_AGENT']
-			);
-		}
+		$this->settleId($id);
 
 		$this->comment = $comment;
 
@@ -102,7 +190,7 @@ class HttpSession
 		elseif ('' != ($s = ini_get('session.cookie_domain')))
 			$this->domain = $s;
 
-		# "session.cookie_lifetime" equal to 0 means no limit???  WTF!!!
+		# "session.cookie_lifetime" equal to 0 means no limit
 		if (! is_null($maxage))
 			$this->maxage = $maxage;
 		elseif (($i = ini_get('session.cookie_lifetime')) > 0)
@@ -119,15 +207,47 @@ class HttpSession
 
 		$this->autosave = (bool) $autosave;
 
-		$this->filename = ini_get('session.save_path') . '/SuckLess_'
-			. $this->name . '.' . $this->id;
-
 		$this->headerSent = false;
+	}
 
-		if ($autoload)
-			$this->read();
-		else
-			$this->data = array();
+	###
+	# get comment of current session
+	##
+	public function getComment()
+	{
+		return $this->comment;
+	}
+
+	###
+	# get domain of current session
+	##
+	public function getDomain()
+	{
+		return $this->domain;
+	}
+
+	###
+	# get Max-Age of current session
+	##
+	public function getMaxAge()
+	{
+		return $this->maxage;
+	}
+
+	###
+	# get secure of current session
+	##
+	public function getSecure()
+	{
+		return $this->secure;
+	}
+
+	###
+	# get expires of current session
+	##
+	public function getExpires()
+	{
+		return $this->expires;
 	}
 
 	###
@@ -141,32 +261,29 @@ class HttpSession
 	}
 
 	###
-	# read previously saved session
+	# set expires of current session
+	#
+	# @param $i value to set
 	##
-	public function read()
+	public function setExpires($i)
 	{
-		$buf = @file_get_contents($this->filename);
-		if (! $buf) return;
+		if (is_null($i))
+			$this->expires = null;
+		elseif (is_numeric($i))
+			$this->expires = $i * 1;
+	}
 
-		$obj = unserialize($buf);
-
-		# old "expires" value SHOULD NOT be used
-#		$this->expires = $obj->expires;
-		$this->id = $obj->id;
-		$this->name = $obj->name;
-		$this->comment = $obj->comment;
-		$this->domain = $obj->domain;
-		$this->maxage = $obj->maxage;
-		$this->path = $obj->path;
-		$this->secure = $obj->secure;
-
-		$this->cachectrl = $obj->cachectrl;
-
-		$this->autosave = $obj->autosave;
-		$this->filename = $obj->filename;
-		$this->headerSent = $obj->headerSent;
-
-		$this->data = $obj->data;
+	###
+	# set Max-Age of current session
+	#
+	# @param $i value to set
+	##
+	public function setMaxAge($i)
+	{
+		if (is_null($i))
+			$this->maxage = null;
+		elseif (is_numeric($i))
+			$this->maxage = $i * 1;
 	}
 
 	###
@@ -174,15 +291,23 @@ class HttpSession
 	##
 	public function write()
 	{
-		file_put_contents($this->filename, serialize($this));
+		return file_put_contents
+		(
+			$this->filename
+			, serialize($this)
+			, LOCK_EX
+		);
 	}
 
 	###
 	# send header fields associated with current session
+	#
+	# @param $force force sending out header fields
+	#               (useful for changing cooke's attributes)
 	##
-	public function sendHeader()
+	public function sendHeader($force = false)
 	{
-		if ($this->headerSent)
+		if ($this->headerSent && ! $force)
 			return;
 		else
 			$this->headerSent = true;
@@ -215,11 +340,11 @@ class HttpSession
 
 			if (! is_null($this->expires) && '' != $this->expires)
 			{
-				$strDT = strftime
+				$strDT = gmdate
 				(
-					'%a, %d-%b-%Y %T %Z'
+					'D, d-M-Y H:i:s'
 					, time() + ($this->expires * 60)
-				);
+				) . ' GMT';
 
 				$str .= ';expires="' . $strDT . '"';
 
@@ -247,11 +372,17 @@ class HttpSession
 	}
 
 	###
-	# clear all data stored in current session
+	# clear the specified data, or all data if no key is provided, stored in
+	# current session
+	#
+	# @param $key key for specifying the data to clear (optional)
 	##
-	public function clear()
+	public function clear($key = null)
 	{
-		$this->data = array();
+		if (is_null($key))
+			$this->data = array();
+		else
+			unset($this->data[$key]);
 	}
 
 	###
@@ -299,6 +430,43 @@ class HttpSession
 		$this->data = array_merge($this->data, $data);
 
 		if ($this->autosave) $this->write();
+	}
+
+	###
+	# remove all expired session data files
+	#
+	# @return names of the files removed in the form of an array
+	##
+	public static function rmExpired()
+	{
+		$d = dir(ini_get('session.save_path'));
+
+		$deleted = array();
+
+		while(false !== ($fn = $d->read()))
+		{
+			if ($fn === '.' || $fn === '..') continue;
+
+			$fname = $d->path . '/' . $fn;
+			$fp = fopen($fname, 'r');
+			if ($fp === false) continue;
+			$stats = fstat($fp);
+			fclose($fp);
+
+			$buf = file_get_contents($fname);
+			$obj = unserialize($buf);
+
+			if ($obj === false || get_class($obj) != 'HttpSession')
+				continue;
+
+			if (time() - $stats['atime'] > $obj->expires * 60)
+			{
+				unlink($fname);
+				$deleted[] = $fname;
+			}
+		}
+
+		return $deleted;
 	}
 }
 ?>
