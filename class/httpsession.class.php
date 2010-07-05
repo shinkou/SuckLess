@@ -45,7 +45,6 @@ class HttpSession
 	# for data manipulation use
 	private $autosave;
 	private $filename;
-	private $headerSent;
 
 	# this is where the actual data kept
 	public $data;
@@ -84,7 +83,11 @@ class HttpSession
 		$buf = file_get_contents($this->filename);
 		$obj = unserialize($buf);
 
-		if (time() - $stats['atime'] > $obj->expires * 60)
+		if
+		(
+			! is_null($obj->expires)
+			&& time() - $stats['atime'] > $obj->expires * 60
+		)
 		{
 			# delete the session data file
 			unlink($this->filename);
@@ -108,7 +111,6 @@ class HttpSession
 
 			$this->autosave		= $obj->autosave;
 			$this->filename		= $obj->filename;
-			$this->headerSent	= $obj->headerSent;
 
 			$this->data = $obj->data;
 
@@ -117,41 +119,40 @@ class HttpSession
 	}
 
 	###
+	# set ID and data file name with the given ID
+	#
+	# @param $str ID to be set
+	#
+	# @return true if succeed, or false if failed
+	##
+	private function setId($str)
+	{
+		if (is_null($str) || ! is_string($str) || 0 == strlen($str))
+			return false;
+
+		$this->id = $str;
+
+		$this->filename = ini_get('session.save_path') . '/SuckLess_'
+			. $this->name . '.' . $this->id;
+
+		if (file_exists($this->filename))
+			$this->read();
+		else
+			$this->mkNew();
+
+		return true;
+	}
+
+	###
 	# set ID and data file name of an existing session, or generate if
 	# session does not exist
 	#
-	# @param $id session ID to be set
+	# @param $str ID to be set
 	##
-	private function settleId($id)
+	private function settleId($str)
 	{
-		if (is_string($id) && 0 < strlen($id))
-		{
-			$this->id = $id;
-
-			$this->filename = ini_get('session.save_path') . '/SuckLess_'
-				. $this->name . '.' . $this->id;
-
-			if (file_exists($this->filename))
-				$this->read();
-			else
-				$this->mkNew();
-		}
-		elseif (isset($_COOKIE[$this->name]))
-		{
-			$this->id = $_COOKIE[$this->name];
-
-			$this->filename = ini_get('session.save_path') . '/SuckLess_'
-				. $this->name . '.' . $this->id;
-
-			if (file_exists($this->filename))
-				$this->read();
-			else
-				$this->mkNew();
-		}
-		else
-		{
+		if (! $this->setId($str) && ! $this->setId($_COOKIE[$this->name]))
 			$this->mkNew();
-		}
 	}
 
 	###
@@ -206,8 +207,6 @@ class HttpSession
 		$this->cachectrl = (int) $cachectrl;
 
 		$this->autosave = (bool) $autosave;
-
-		$this->headerSent = false;
 	}
 
 	###
@@ -301,73 +300,58 @@ class HttpSession
 
 	###
 	# send header fields associated with current session
-	#
-	# @param $force force sending out header fields
-	#               (useful for changing cooke's attributes)
 	##
-	public function sendHeader($force = false)
+	public function sendHeader()
 	{
-		if ($this->headerSent && ! $force)
-			return;
-		else
-			$this->headerSent = true;
+		# "Set-Cookie"
+		$str = 'Set-Cookie: ' . $this->name . '=' . $this->id;
 
-		if
-		(
-			! isset($_COOKIE[$this->name])
-			|| $_COOKIE[$this->name] !== $this->id
-		)
+		if (is_string($this->comment))
 		{
-			# "Set-Cookie"
-			$str = 'Set-Cookie: ' . $this->name . '=' . $this->id;
+			$str .= ';comment="' . addcslashes($this->comment, '"')
+				. '"';
+		}
 
-			if (is_string($this->comment))
-			{
-				$str .= ';comment="' . addcslashes($this->comment, '"')
-					. '"';
-			}
+		if (! is_null($this->maxage) && $this->maxage >= 0)
+			$str .= ';max-age=' . $this->maxage;
 
-			if (! is_null($this->maxage) && $this->maxage >= 0)
-				$str .= ';max-age=' . $this->maxage;
+		if (is_string($this->path))
+		{
+			$str .= ';path="' . addcslashes($this->path, '"')
+				. '"';
+		}
 
-			if (is_string($this->path))
-			{
-				$str .= ';path="' . addcslashes($this->path, '"')
-					. '"';
-			}
+		if ($this->secure) $str .= ';secure';
 
-			if ($this->secure) $str .= ';secure';
+		if (! is_null($this->expires) && '' != $this->expires)
+		{
+			$strDT = gmdate
+			(
+				'D, d-M-Y H:i:s'
+				, time() + ($this->expires * 60)
+			) . ' GMT';
 
-			if (! is_null($this->expires) && '' != $this->expires)
-			{
-				$strDT = gmdate
-				(
-					'D, d-M-Y H:i:s'
-					, time() + ($this->expires * 60)
-				) . ' GMT';
+			$str .= ';expires="' . $strDT . '"';
 
-				$str .= ';expires="' . $strDT . '"';
+			header('Expires: ' . $strDT);
+		}
 
-				header('Expires: ' . $strDT);
-			}
+		header($str);
 
-			header($str);
-
-			# "Cache-Control"
-			switch($this->cachectrl)
-			{
-			case self::CACHECTRL_PROXY_REVALIDATE:
-			case self::CACHECTRL_MUST_REVALIDATE:
-			case self::CACHECTRL_PRIVATE:
-			case self::CACHECTRL_NOCACHE:
-				header
-				(
-					'Cache-control: ' . self::$CacheCtrl[$this->cachectrl]
-				);
-				break;
-			case self::CACHECTRL_NONE:
-			default:
-			}
+		# "Cache-Control"
+		switch($this->cachectrl)
+		{
+		case self::CACHECTRL_PROXY_REVALIDATE:
+		case self::CACHECTRL_MUST_REVALIDATE:
+		case self::CACHECTRL_PRIVATE:
+		case self::CACHECTRL_NOCACHE:
+			header
+			(
+				'Cache-control: ' . self::$CacheCtrl[$this->cachectrl]
+			);
+			break;
+		case self::CACHECTRL_NONE:
+		default:
 		}
 	}
 
@@ -459,7 +443,11 @@ class HttpSession
 			if ($obj === false || get_class($obj) != 'HttpSession')
 				continue;
 
-			if (time() - $stats['atime'] > $obj->expires * 60)
+			if
+			(
+				! is_null($obj->expires)
+				&& time() - $stats['atime'] > $obj->expires * 60
+			)
 			{
 				unlink($fname);
 				$deleted[] = $fname;
