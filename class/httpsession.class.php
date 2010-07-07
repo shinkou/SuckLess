@@ -43,6 +43,7 @@ class HttpSession
 	private $cachectrl;
 
 	# for data manipulation use
+	private $cookieExpirable;
 	private $autosave;
 	private $filename;
 
@@ -123,7 +124,7 @@ class HttpSession
 	#
 	# @param $str ID to be set
 	#
-	# @return true if succeed, or false if failed
+	# @return TRUE if succeed, or FALSE if failed
 	##
 	private function setId($str)
 	{
@@ -169,6 +170,7 @@ class HttpSession
 		, $path = null
 		, $secure = false
 		, $cachectrl = self::CACHECTRL_NONE
+		, $cookieexp = false
 		, $autosave = false
 	)
 	{
@@ -205,6 +207,8 @@ class HttpSession
 		$this->secure = (bool) $secure;
 
 		$this->cachectrl = (int) $cachectrl;
+
+		$this->cookieExpirable = (bool) $cookieexp;
 
 		$this->autosave = (bool) $autosave;
 	}
@@ -250,13 +254,34 @@ class HttpSession
 	}
 
 	###
+	# get whether cookie is expirable
+	##
+	public function getCookieExpirable()
+	{
+		return $this->cookieExpirable;
+	}
+
+	###
 	# return the state of autosave
 	#
-	# @return state of autosave (true / false)
+	# @return state of autosave (TRUE / FALSE)
 	##
 	public function getAutosave()
 	{
 		return $this->autosave;
+	}
+
+	###
+	# set Max-Age of current session
+	#
+	# @param $i value to set
+	##
+	public function setMaxAge($i)
+	{
+		if (is_null($i))
+			$this->maxage = null;
+		elseif (is_numeric($i))
+			$this->maxage = $i * 1;
 	}
 
 	###
@@ -273,16 +298,23 @@ class HttpSession
 	}
 
 	###
-	# set Max-Age of current session
+	# set whether cookie is expirable
 	#
-	# @param $i value to set
+	# @param $expirable whether cookie will expire
 	##
-	public function setMaxAge($i)
+	public function setCookieExpirable($expirable)
 	{
-		if (is_null($i))
-			$this->maxage = null;
-		elseif (is_numeric($i))
-			$this->maxage = $i * 1;
+		$this->cookieExpirable = (bool) $expirable;
+	}
+
+	###
+	# enable or disable auto save
+	#
+	# @param $autosave TRUE to enable; FALSE to disable
+	##
+	public function setAutosave($autosave)
+	{
+		$this->autosave = (bool) $autosave;
 	}
 
 	###
@@ -323,7 +355,15 @@ class HttpSession
 
 		if ($this->secure) $str .= ';secure';
 
-		if (! is_null($this->expires) && '' != $this->expires)
+		# we can make sure cache files get deleted more efficiently by not
+		# sending "expires" info in the cookie
+		# TODO: improve cache deletion efficiency
+		if
+		(
+			$this->cookieExpirable
+			&& ! is_null($this->expires)
+			&& '' != $this->expires
+		)
 		{
 			$strDT = gmdate
 			(
@@ -367,6 +407,16 @@ class HttpSession
 			$this->data = array();
 		else
 			unset($this->data[$key]);
+	}
+
+	###
+	# destroy cache used to store data for current session
+	#
+	# @return TRUE if succeeded, or FALSE if failed
+	##
+	public function destroy()
+	{
+		return @unlink($this->filename);
 	}
 
 	###
