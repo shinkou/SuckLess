@@ -18,8 +18,12 @@ class DataPager
 		= '<a class="PagingLink" href="%spg=%%d&pglen=%%d">|&lt;</a>';
 	const LINK_SUPER_TEMPLATE_RW	# rewind
 		= '<a class="PagingLink" href="%spg=%%d&pglen=%%d">&lt;&lt;</a>';
+	const LINK_SUPER_TEMPLATE_PE	# previous entry
+		= '<a class="PagingLink" href="%spg=%%d&pglen=%%d">&lt;</a>';
 	const LINK_SUPER_TEMPLATE_NM	# numbered
 		= '<a class="PagingLink" href="%spg=%%d&pglen=%%d">%%d</a>';
+	const LINK_SUPER_TEMPLATE_NE	# next entry
+		= '<a class="PagingLink" href="%spg=%%d&pglen=%%d">&gt;</a>';
 	const LINK_SUPER_TEMPLATE_FF	# fast forward
 		= '<a class="PagingLink" href="%spg=%%d&pglen=%%d">&gt;&gt;</a>';
 	const LINK_SUPER_TEMPLATE_LE	# last entry
@@ -42,7 +46,9 @@ class DataPager
 
 	public $lnkTplFe;	# first entry link template
 	public $lnkTplRw;	# rewind link template
+	public $lnkTplPe;	# previous entry link template
 	public $lnkTplNm;	# numbered link template
+	public $lnkTplNe;	# next entry link template
 	public $lnkTplFf;	# fast forwadr link template
 	public $lnkTplLe;	# last entry link template
 
@@ -78,12 +84,9 @@ class DataPager
 			$this->dataTtl = 0;
 		}
 
-		$this->pgLen = intval($len);
-		$this->pgTtl = $this->dataTtl / $this->pgLen;
-		$this->pgCur = intval($cur);
-
-		$this->lnkRng = intval($rng);
-
+		$this->setPageLength($len);
+		$this->setPageCurrent($cur);
+		$this->setLinkRange($rng);
 		$this->setBaseURL($url);
 	}
 
@@ -118,6 +121,14 @@ class DataPager
 	}
 
 	###
+	# get link range
+	##
+	public function getLinkRange()
+	{
+		return $this->lnkRng;
+	}
+
+	###
 	# get base URL of the navigation links
 	#
 	# @return base URL of the navigation links
@@ -136,8 +147,10 @@ class DataPager
 	{
 		if (! is_null($i) && preg_match('/^[1-9][[:digit:]]*$/', $i))
 		{
-			$this->setPageCurrent($this->pgCur * $this->pgLen / $i);
-			$this->pgLen = $i;
+			$this->pgLen = intval($i);
+			$this->pgTtl = $this->dataTtl / $this->pgLen;
+
+			$this->setPageCurrent($this->pgCur);
 		}
 	}
 
@@ -160,6 +173,19 @@ class DataPager
 	}
 
 	###
+	# set link range
+	#
+	# @param $i link range
+	##
+	public function setLinkRange($i)
+	{
+		if (! is_null($i) && preg_match('/^[1-9][[:digit:]]*$/', $i))
+		{
+			$this->lnkRng = intval($i);
+		}
+	}
+
+	###
 	# set base URL of the navigation links
 	# NOTE: all link templates will be reset according to the base URL given
 	#
@@ -173,7 +199,9 @@ class DataPager
 
 		$this->lnkTplFe = sprintf(self::LINK_SUPER_TEMPLATE_FE, $strUrl);
 		$this->lnkTplRw = sprintf(self::LINK_SUPER_TEMPLATE_RW, $strUrl);
+		$this->lnkTplPe = sprintf(self::LINK_SUPER_TEMPLATE_PE, $strUrl);
 		$this->lnkTplNm = sprintf(self::LINK_SUPER_TEMPLATE_NM, $strUrl);
+		$this->lnkTplNe = sprintf(self::LINK_SUPER_TEMPLATE_NE, $strUrl);
 		$this->lnkTplFf = sprintf(self::LINK_SUPER_TEMPLATE_FF, $strUrl);
 		$this->lnkTplLe = sprintf(self::LINK_SUPER_TEMPLATE_LE, $strUrl);
 		$this->spnTplNm = sprintf(self::SPAN_SUPER_TEMPLATE_NM);
@@ -220,10 +248,21 @@ class DataPager
 			);
 		}
 
+		if (0 < $this->pgCur)
+		{
+			# previous entry
+			$out .= sprintf
+			(
+				$this->lnkTplPe
+				, $this->pgCur - 1
+				, $this->pgLen
+			);
+		}
+
 		$lo = ($this->lnkRng < $this->pgCur)
 			? $this->pgCur - $this->lnkRng : 0;
 		$hi = ($this->pgTtl - $this->lnkRng - 1 > $this->pgCur)
-			? $this->pgCur + $this->lnkRng : $this->pgTtl - 1;
+			? $this->pgCur + $this->lnkRng + 1 : $this->pgTtl;
 
 		# numbered
 		for($i = $lo; $hi > $i; $i ++)
@@ -246,6 +285,17 @@ class DataPager
 					, $i + 1
 				);
 			}
+		}
+
+		if ($this->pgTtl - 1 > $this->pgCur)
+		{
+			# next entry
+			$out .= sprintf
+			(
+				$this->lnkTplNe
+				, $this->pgCur + 1
+				, $this->pgLen
+			);
 		}
 
 		if ($this->pgTtl - $this->lnkRng - 1 > $this->pgCur)
