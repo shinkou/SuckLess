@@ -148,7 +148,7 @@ class DataPager
 		if (! is_null($i) && preg_match('/^[1-9][[:digit:]]*$/', $i))
 		{
 			$this->pgLen = intval($i);
-			$this->pgTtl = $this->dataTtl / $this->pgLen;
+			$this->pgTtl = ceil($this->dataTtl / $this->pgLen);
 
 			$this->setPageCurrent($this->pgCur);
 		}
