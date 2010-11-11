@@ -14,19 +14,19 @@ if (realpath($_SERVER['SCRIPT_FILENAME']) == realpath(__FILE__))
 #
 class DataPager
 {
-	const LINK_SUPER_TEMPLATE_FE	# first entry
+	const LINK_SUPER_TEMPLATE_FE	# first entries
 		= '<a class="PagingLink" href="%spg=%%d&pglen=%%d">|&lt;</a>';
 	const LINK_SUPER_TEMPLATE_RW	# rewind
 		= '<a class="PagingLink" href="%spg=%%d&pglen=%%d">&lt;&lt;</a>';
-	const LINK_SUPER_TEMPLATE_PE	# previous entry
+	const LINK_SUPER_TEMPLATE_PE	# previous entries
 		= '<a class="PagingLink" href="%spg=%%d&pglen=%%d">&lt;</a>';
 	const LINK_SUPER_TEMPLATE_NM	# numbered
 		= '<a class="PagingLink" href="%spg=%%d&pglen=%%d">%%d</a>';
-	const LINK_SUPER_TEMPLATE_NE	# next entry
+	const LINK_SUPER_TEMPLATE_NE	# next entries
 		= '<a class="PagingLink" href="%spg=%%d&pglen=%%d">&gt;</a>';
 	const LINK_SUPER_TEMPLATE_FF	# fast forward
 		= '<a class="PagingLink" href="%spg=%%d&pglen=%%d">&gt;&gt;</a>';
-	const LINK_SUPER_TEMPLATE_LE	# last entry
+	const LINK_SUPER_TEMPLATE_LE	# last entries
 		= '<a class="PagingLink" href="%spg=%%d&pglen=%%d">&gt;|</a>';
 
 	const SPAN_SUPER_TEMPLATE_NM	# numbered (disabled)
@@ -44,13 +44,13 @@ class DataPager
 
 	private $lnkBase;	# base URL
 
-	public $lnkTplFe;	# first entry link template
+	public $lnkTplFe;	# first entries link template
 	public $lnkTplRw;	# rewind link template
-	public $lnkTplPe;	# previous entry link template
+	public $lnkTplPe;	# previous entries link template
 	public $lnkTplNm;	# numbered link template
-	public $lnkTplNe;	# next entry link template
+	public $lnkTplNe;	# next entries link template
 	public $lnkTplFf;	# fast forwadr link template
-	public $lnkTplLe;	# last entry link template
+	public $lnkTplLe;	# last entries link template
 
 	public $spnTplNm;	# numbered span tag template
 
@@ -237,7 +237,7 @@ class DataPager
 
 		if ($this->lnkRng < $this->pgCur)
 		{
-			# first entry
+			# first entries
 			$out .= sprintf($this->lnkTplFe, 0, $this->pgLen);
 			# rewind
 			$out .= sprintf
@@ -250,7 +250,7 @@ class DataPager
 
 		if (0 < $this->pgCur)
 		{
-			# previous entry
+			# previous entries
 			$out .= sprintf
 			(
 				$this->lnkTplPe
@@ -289,7 +289,7 @@ class DataPager
 
 		if ($this->pgTtl - 1 > $this->pgCur)
 		{
-			# next entry
+			# next entries
 			$out .= sprintf
 			(
 				$this->lnkTplNe
@@ -307,7 +307,7 @@ class DataPager
 				, $this->pgCur + $this->lnkRng + 1
 				, $this->pgLen
 			);
-			# last entry
+			# last entries
 			$out .= sprintf
 			(
 				$this->lnkTplLe
