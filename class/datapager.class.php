@@ -195,7 +195,10 @@ class DataPager
 	{
 		$this->lnkBase = is_string($url) ? $url : $_SERVER['REQUEST_URI'];
 
-		$strUrl = $this->lnkBase . '?';
+		if (strstr($this->lnkBase, '?') === false)
+			$strUrl = $this->lnkBase . '?';
+		else
+			$strUrl = $this->lnkBase . '&';
 
 		$this->lnkTplFe = sprintf(self::LINK_SUPER_TEMPLATE_FE, $strUrl);
 		$this->lnkTplRw = sprintf(self::LINK_SUPER_TEMPLATE_RW, $strUrl);
