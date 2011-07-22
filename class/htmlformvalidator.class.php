@@ -35,9 +35,9 @@ if (realpath($_SERVER['SCRIPT_FILENAME']) == realpath(__FILE__))
 #         'lbl' => 'Label'
 #         , 'chks' => array
 #         (
-#             'req' => array(false)
-#             , 'maxlen' => array(2)
-#             , 'range' => array(1, 12)
+#             'Required' => array(false)
+#             , 'MaxLen' => array(2)
+#             , 'Range' => array(1, 12)
 #         )
 #     )
 #     , 'Year' => array
@@ -90,12 +90,13 @@ class HtmlFormValidator
 	#
 	# @param $lbl label of the input
 	# @param $val actual value of the input
+	# @param $b TRUE: required; FALSE: not required (optional)
 	#
 	# @return null if succeeded or error message if failed
 	##
-	private function chkRequired($lbl, $val)
+	private function chkRequired($lbl, $val, $b = true)
 	{
-		if ((is_null($val) || '' == $val))
+		if ($b && (is_null($val) || '' == $val))
 			return '"' . $lbl . '" is required.';
 
 		return null;
@@ -303,6 +304,8 @@ class HtmlFormValidator
 
 		foreach($arr['chks'] as $func => $prms)
 		{
+			if (! is_array($prms)) $prms = array($prms);
+
 			$strTmp = call_user_func_array
 			(
 				array($this, 'chk' . $func)
@@ -346,7 +349,7 @@ class HtmlFormValidator
 		$this->errors = array();
 
 		foreach($this->rules as $key => $val)
-			$this->chk($key, $data[$key]);
+			@$this->chk($key, $data[$key]);
 
 		return $this->isValid;
 	}
