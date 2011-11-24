@@ -4,13 +4,33 @@ if (realpath($_SERVER['SCRIPT_FILENAME']) == realpath(__FILE__))
 
 #
 # SuckLess (http://github.com/shinkou/SuckLess)
-# Copyright (c) 2010 Chun-Kwong Wong
+# Copyright (c) 2010 - 2011 Chun-Kwong Wong
 #
 # This file is released under the MIT license.  For more info, read LICENSE.
 #
 
 #
 # This is a class for HTTP session manipulations.
+#
+# Example 1:
+#
+# $sess = new HttpSession(60, $my_session_id);
+#
+#   # ... do something ...
+#
+# $sess->put('data1', 'some data');
+# $sess->sendHeader();
+# $sess->write();
+#
+#
+# Example 2:
+#
+# $sess = new HttpSession(array('domain' => 'example.com', 'autosave' => 0));
+#
+#   # ... do something ...
+#
+# $sess->putAll($data);
+# $sess->sendHeader();
 #
 class HttpSession
 {
@@ -174,6 +194,36 @@ class HttpSession
 		, $autosave = false
 	)
 	{
+		if (is_array($expires) and $expires)
+		{
+			$arr = $expires;
+
+			foreach($arr as $k => $v)
+			{
+				switch(strtolower($k))
+				{
+				case 'expires':
+				case 'id':
+				case 'name':
+				case 'comment':
+				case 'domain':
+				case 'path':
+					$$k = $v;
+					break;
+				case 'maxage':
+				case 'cachectrl':
+					$$k = (int) $v;
+					break;
+				case 'secure':
+				case 'cookieexp':
+				case 'autosave':
+					$$k = (bool) $v;
+					break;
+				default:
+				}
+			}
+		}
+
 		if (! is_null($expires))
 			$this->expires = $expires;
 		else
@@ -339,21 +389,20 @@ class HttpSession
 		$str = 'Set-Cookie: ' . $this->name . '=' . $this->id;
 
 		if (is_string($this->comment))
-		{
-			$str .= ';comment="' . addcslashes($this->comment, '"')
-				. '"';
-		}
+			$str .= ';comment=' . $this->comment;
+
+		if (is_string($this->domain))
+			$str .= ';domain=.' . $this->domain;
 
 		if (! is_null($this->maxage) && $this->maxage >= 0)
 			$str .= ';max-age=' . $this->maxage;
 
 		if (is_string($this->path))
-		{
-			$str .= ';path="' . addcslashes($this->path, '"')
-				. '"';
-		}
+			$str .= ';path=' . $this->path;
 
 		if ($this->secure) $str .= ';secure';
+
+		$str .= ';version=1';
 
 		# we can make sure cache files get deleted more efficiently by not
 		# sending "expires" info in the cookie
@@ -371,7 +420,7 @@ class HttpSession
 				, time() + ($this->expires * 60)
 			) . ' GMT';
 
-			$str .= ';expires="' . $strDT . '"';
+			$str .= ';expires=' . $strDT;
 
 			header('Expires: ' . $strDT);
 		}
