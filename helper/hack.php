@@ -13,35 +13,224 @@ if (realpath($_SERVER['SCRIPT_FILENAME']) == realpath(__FILE__))
 # This is a set of helper functions dedicated to PHP hacking.
 #
 
-###
-# inject private class variable to object
 #
-# @param $obj the object to be injected to
-# @param $k name of the variable
-# @param $v value of the variable
+# This class is dedicated to manipulating private class variables through
+# (un)serialization.
 #
-# @return object with the class variable injected
-##
-function inject_private_var($obj, $k, $v)
+class SerialKiller
 {
-	# class name
-	$c = get_class($obj);
-	# serialized object
-	$s = serialize($obj);
-	# class identifier
-	$h = 'O:' . strlen($c) . ':"' . $c . '":';
-	# beginning of class contents
-	$i = strpos($s, ':', strlen($h)) + 1;
-	# number of class variables
-	$l = intval(substr($s, strlen($h), $i - strlen($h) - 1));
-	# class contents
-	$x = substr($s, $i);
-	# contents to inject
-	$y = sprintf("s:%d:\"\0%s\0%s\";", strlen($c) + strlen($k) + 2, $c, $k)
-		. serialize($v);
-	# final serialized object
-	$o = $h . ($l + 1) . ':' . substr($x, 0, -1) . $y . substr($x, -1);
-	# return unserialized object
-	return unserialize($o);
+	###
+	# construct class identifier for serialized object
+	#
+	# @param $s class name
+	#
+	# @return serialized object's class identifier
+	##
+	private static function mkClassIdentifier($s)
+	{
+		return 'O:' . strlen($s) . ':"' . $s . '":';
+	}
+
+	###
+	# construct private variable name for serialized object
+	#
+	# @param $c class name
+	# @param $k name of the variable
+	#
+	# @return serialized private class variable name
+	##
+	private static function mkPrivateVarName($c, $k)
+	{
+		return sprintf
+		(
+			"s:%d:\"\0%s\0%s\";"
+			, strlen($c) + strlen($k) + 2
+			, $c
+			, $k
+		);
+	}
+
+	###
+	# construct private variable for serialized object
+	#
+	# @param $c class name
+	# @param $k name of the variable
+	# @param $v value of the variable
+	#
+	# @return serialized private class variable
+	##
+	private static function mkPrivateVar($c, $k, $v)
+	{
+		return self::mkPrivateVarName($c, $k) . serialize($v);
+	}
+
+	###
+	# split serialized class contents and put them in a map
+	#
+	# @param $s serialized class contents
+	#
+	# @return a map representing the class contents
+	##
+	private static function splitClassContents($s)
+	{
+		$o = array();
+		$sq = false;	# whether we're in a single quotation
+		$dq = false;	# whether we're in a double quotation
+		$br = 0;		# brace level
+		$i = 0;			# beginning of an item
+		$wk = 0;		# walking index
+		$pack = false;	# whether it's time to pack an item
+		$l = strlen($s);
+		for($wk = 0; $wk < $l; $wk ++)
+		{
+			switch($s[$wk])
+			{
+			case '"':
+				if (! $sq) $dq = ! $dq;
+				break;
+			case "'":
+				if (! $dq) $sq = ! $sq;
+				break;
+			case '{':
+				if (! $sq and ! $dq) $br ++;
+				break;
+			case '}':
+				if (! $sq and ! $dq) $br --;
+				if (! $br) $pack = true;
+				break;
+			case ';':
+				if (! $sq and ! $dq and ! $br) $pack = true;
+				break;
+			default:
+			}
+			if ($pack)
+			{
+				$wk ++;
+				array_push($o, substr($s, $i, $wk - $i));
+				$i = $wk;
+				$pack = false;
+			}
+		}
+		if ($sq or $dq or $br)
+			throw new ErrorException('Invalid class content structure');
+		$a = array();
+		$l = count($o);
+		if ($l % 2) throw new ErrorException('Dangling class content');
+		for($i = 0; $i < $l; $i += 2) $a[$o[$i]] = $o[$i + 1];
+		return $a;
+	}
+
+	###
+	# get serialized private variable value of the serialized object
+	#
+	# @param $s the serialized object
+	# @param $k name of the variable
+	#
+	# @return serialized value of the private variable
+	##
+	private static function getPrivateVarSVal($s, $k)
+	{
+		# class name
+		$c = self::getClass($s);
+		# reconstruct class identifier
+		$h = self::mkClassIdentifier($c);
+		# beginning of class contents
+		$i = strpos($s, ':', strlen($h)) + 1;
+		# class contents
+		$x = substr($s, $i + 1, -1);
+		# class variable name
+		$n = self::mkPrivateVarName($c, $k);
+		# get class contents
+		$a = self::splitClassContents($x);
+		return $a[$n];
+	}
+
+	###
+	# get class name from serialized object
+	#
+	# @param $s the serialized object
+	#
+	# @return class name
+	##
+	private static function getClass($s)
+	{
+		if (! is_string($s) or 'O:' != substr($s, 0, 2))
+		{
+			throw new ErrorException
+			(
+				'"' . $s . '" is not a valid serialized object'
+			);
+		}
+		$i = strpos($s, ':', 2);
+		if (2 > $i)
+		{
+			throw new ErrorException
+			(
+				'"' . $s . '" does not have a class name'
+			);
+		}
+		$l = intval(substr($s, 2, $i));
+		$c = substr($s, $i + 1, $l + 2);
+		if ('"' != substr($c, 0, 1) or '"' != substr($c, -1))
+		{
+			throw new ErrorException
+			(
+				'"' . $s . '" does not have a valid class name'
+			);
+		}
+		$c = substr($c, 1, strlen($c) - 2);
+		return $c;
+	}
+
+	###
+	# get private variable of the serialized object
+	#
+	# @param $s the serialized object
+	# @param $k name of the variable
+	# @param $bo true: serialize output; false: unserialize output
+	# @param $bi true: input is serialized; false: input is unserialized
+	#
+	# @return value of the variable
+	##
+	public static function getPrivateVar($s, $k, $bo = false, $bi = false)
+	{
+		if (! $bi) $s = serialize($s);
+		$v = self::getPrivateVarSVal($s, $k);
+		if (! $bo) $v = unserialize($v);
+		return $v;
+	}
+
+	###
+	# set private class variable to serialized object
+	#
+	# @param $s the serialized object to be injected to
+	# @param $k name of the variable
+	# @param $v value of the variable
+	# @param $bo true: serialize output; false: unserialize output
+	# @param $bi true: input is serialized; false: input is unserialized
+	#
+	# @return object with the class variable injected
+	##
+	public static function setPrivateVar($s, $k, $v, $bo = false, $bi = false)
+	{
+		if (! $bi) $s = serialize($s);
+		# class name
+		$c = self::getClass($s);
+		# reconstruct class identifier
+		$h = self::mkClassIdentifier($c);
+		# beginning of class contents
+		$i = strpos($s, ':', strlen($h)) + 1;
+		# number of class variables
+		$l = intval(substr($s, strlen($h), $i - strlen($h) - 1));
+		# class contents
+		$x = substr($s, $i);
+		# contents to inject
+		$y = self::mkPrivateVar($c, $k, $v);
+		# final serialized object
+		$o = $h . ($l + 1) . ':' . substr($x, 0, -1) . $y . substr($x, -1);
+		if (! $bo) $o = unserialize($o);
+		# return serialized object
+		return $o;
+	}
 }
 ?>
