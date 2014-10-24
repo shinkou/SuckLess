@@ -4,7 +4,7 @@ if (realpath($_SERVER['SCRIPT_FILENAME']) == realpath(__FILE__))
 
 #
 # SuckLess (http://github.com/shinkou/SuckLess)
-# Copyright (c) 2010 Chun-Kwong Wong
+# Copyright (c) 2010 - 2014 Chun-Kwong Wong
 #
 # This file is released under the MIT license. For more info, read LICENSE.
 #
