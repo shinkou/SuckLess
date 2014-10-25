@@ -79,36 +79,67 @@ class SerialKiller
 		$br = 0;		# brace level
 		$i = 0;			# beginning of an item
 		$wk = 0;		# walking index
-		$pack = false;	# whether it's time to pack an item
 		$l = strlen($s);
 		for($wk = 0; $wk < $l; $wk ++)
 		{
 			switch($s[$wk])
 			{
-			case '"':
-				if (! $sq) $dq = ! $dq;
+			case 'N':
+				if (';' != $s[$wk + 1]) throw new ErrorException('Unknown type');
+				$wk ++;
+				array_push($o, null);
 				break;
-			case "'":
-				if (! $dq) $sq = ! $sq;
+			case 'b':
+			case 'd':
+			case 'i':
+				if (':' != $s[$wk + 1]) throw new ErrorException('Unknown type');
+				$wk += 2;
+				while(';' != $s[$wk]) $wk ++;
+				array_push($o, substr($s, $i, $wk - $i + 1));
+				$i = $wk + 1;
 				break;
-			case '{':
-				if (! $sq and ! $dq) $br ++;
+			case 's':
+				if (':' != $s[$wk + 1]) throw new ErrorException('Unknown type');
+				$wk += 2;
+				$z = intval(substr($s, $wk, strpos($s, ':', $wk) - $wk));
+				$wk = strpos($s, ':', $wk) + $z + 3;
+				array_push($o, substr($s, $i, $wk - $i + 1));
+				$i = $wk + 1;
 				break;
-			case '}':
-				if (! $sq and ! $dq) $br --;
-				if (! $br) $pack = true;
-				break;
-			case ';':
-				if (! $sq and ! $dq and ! $br) $pack = true;
+			case 'O':
+			case 'a':
+				if (':' != $s[$wk + 1]) throw new ErrorException('Unknown type');
+				$wk += 2;
+				while(':' != $s[$wk]) $wk ++;
+				while($wk < $l)
+				{
+					switch($s[$wk])
+					{
+					case '"':
+						if (! $sq) $dq = ! $dq;
+						break;
+					case "'":
+						if (! $dq) $sq = ! $sq;
+						break;
+					case '{':
+						if (! $sq and ! $dq) $br ++;
+						break;
+					case '}':
+						if (! $sq and ! $dq) $br --;
+						if (! $br)
+						{
+							array_push($o, substr($s, $i, $wk - $i + 1));
+							$i = $wk + 1;
+							break 2;
+						}
+						break;
+					default:
+					}
+					$wk ++;
+				}
 				break;
 			default:
-			}
-			if ($pack)
-			{
-				$wk ++;
-				array_push($o, substr($s, $i, $wk - $i));
-				$i = $wk;
-				$pack = false;
+				throw new ErrorException('Unknown type');
 			}
 		}
 		if ($sq or $dq or $br)
